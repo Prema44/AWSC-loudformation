@@ -1,0 +1,2 @@
+Resource attributes and metadata in resource attributes
+Ntofication arns in cloudformation

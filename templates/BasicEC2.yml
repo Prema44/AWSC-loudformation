@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Basic EC2 instance with SG, EIP"
+Parameters:
+  EC2KeyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Select Key Pair from the list
+  MyAZ:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: Az for ec2 instance
+  MyInstanceType:
+    Description: Instance type for EC2 instance
+    Type: String
+    AllowedValues:
+    - t2.micro
+    - t2.medium
+    Default: t2.micro
+  Environment:
+    Description: Environment name
+    AllowedValues:
+    - dev
+    - prod
+Conditions:
+  CreateEIPForProd:
+    Fn::Equals:
+    - Ref: Environment
+    - prod
+  CreateDevSg:
+    Fn::Equals:
+    - Ref: Environment
+    - dev
+
+Mappings:
+  RegionAMIArchMapping:
+    us-east-1:
+      AMD: ami-xxxx
+      ARM: ami-xxxx
+    eu-west-1:
+      AMD: ami-xxxx
+      ARM: ami-xxxx
+Resources:
+  MyEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType:
+        Ref: MyInstanceType
+      KeyName: 
+        Ref: EC2KeyPair
+      AvailabilityZone: 
+        Ref: MyAZ
+      SecurityGroups:
+      - Fn::If: [CreateDevSg, Ref: DevSSHSecurityGroup, Ref: AWS::NoValue]
+      ImageId: 
+        Fn::FindInMap: [RegionAMIArchMapping, Ref: AWS::Region, ARM]
+  DevSSHSecurityGroup:
+    Condition: CreateDevSg
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SSH Security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 8080
+        ToPort: 8080
+        CidrIp: 0.0.0.0/0
+  MyElasticIp:
+    Type: AWS::EC2::EIP
+    Condition: CreateEIPForProd
+    Properties:
+      InstanceId: 
+        Ref: MyEC2Instance
+Outputs:
+  MyInstanceId:
+    Description: Instance Id of the env 
+    Value: 
+      Ref: MyEC2Instance
+    Export:
+      Name: 
+        Fn::Sub: '${AWS::StackName}-MyInstanceId'
+
+
